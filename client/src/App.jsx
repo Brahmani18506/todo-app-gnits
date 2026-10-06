@@ -11,50 +11,119 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Runs an API action and shows its error in the banner if it fails
-  const run = async (action) => {
-    try {
-      setError("");
-      await action();
-    } catch (err) {
-      console.error(err);
-      setError(err.message);
-    }
-  };
+  // Shows an error in the banner (and logs it in the console)
+  function showError(err) {
+    console.error(err);
+    setError(err.message);
+  }
 
+  // Load all todos once when the page opens
   useEffect(() => {
-    run(async () => setTodos(await getTodos())).finally(() =>
-      setLoading(false)
-    );
+    async function loadTodos() {
+      try {
+        setError("");
+        const data = await getTodos();
+        setTodos(data);
+      } catch (err) {
+        showError(err);
+      } finally {
+        // Stop loading whether it worked or failed
+        setLoading(false);
+      }
+    }
+
+    loadTodos();
   }, []);
 
-  const handleAdd = (title) =>
-    run(async () => {
+  // Add a new todo to the top of the list
+  async function handleAdd(title) {
+    try {
+      setError("");
       const newTodo = await createTodo(title);
       setTodos((prev) => [newTodo, ...prev]);
-    });
+    } catch (err) {
+      showError(err);
+    }
+  }
 
-  const handleUpdate = (id, data) =>
-    run(async () => {
+  // Replace the edited todo with the updated version from the server
+  async function handleUpdate(id, data) {
+    try {
+      setError("");
       const updated = await updateTodo(id, data);
       // TODO: Complete this. Update the `todos` state so the edited todo is
       // replaced with `updated` (keep every other todo as it is).
-    });
+    } catch (err) {
+      showError(err);
+    }
+  }
 
-  const handleDelete = (id) =>
-    run(async () => {
+  // Remove one todo
+  async function handleDelete(id) {
+    try {
+      setError("");
       await deleteTodo(id);
-      setTodos((prev) => prev.filter((t) => t._id !== id));
-    });
+      setTodos((prev) => prev.filter((todo) => todo._id !== id));
+    } catch (err) {
+      showError(err);
+    }
+  }
 
-  const handleClearDone = () =>
-    run(async () => {
-      const done = todos.filter(FILTERS.done.test);
-      await Promise.all(done.map((t) => deleteTodo(t._id)));
-      setTodos((prev) => prev.filter((t) => !t.completed));
-    });
+  // Remove every completed todo
+  async function handleClearDone() {
+    try {
+      setError("");
+      const doneTodos = todos.filter((todo) => todo.completed);
 
+      for (const todo of doneTodos) {
+        await deleteTodo(todo._id);
+      }
+
+      setTodos((prev) => prev.filter((todo) => !todo.completed));
+    } catch (err) {
+      showError(err);
+    }
+  }
+
+  // Only the todos that match the selected filter
   const filteredTodos = todos.filter(FILTERS[filter].test);
+
+  // "1 task" or "3 tasks"
+  const taskWord = filteredTodos.length === 1 ? "task" : "tasks";
+
+  // Decide what to show in the list area
+  function renderTodos() {
+    if (loading) {
+      return <p className="empty">Loading...</p>;
+    }
+
+    if (filteredTodos.length === 0) {
+      let message = "You're all caught up. Add a task above.";
+      if (filter === "done") {
+        message = "Nothing completed yet";
+      }
+
+      return (
+        <div className="empty">
+          <img src="/logo.png" alt="" />
+          <p>{message}</p>
+        </div>
+      );
+    }
+
+    return (
+      <ul className="todo-list">
+        {filteredTodos.map((todo) => (
+          <TodoItem
+            key={todo._id}
+            todo={todo}
+            onUpdate={handleUpdate}
+            onDelete={handleDelete}
+          />
+        ))}
+      </ul>
+    );
+  }
 
   return (
     <div className="layout">
@@ -69,7 +138,7 @@ function App() {
         <header className="content-header">
           <h2>{FILTERS[filter].label}</h2>
           <span className="content-count">
-            {filteredTodos.length} {filteredTodos.length === 1 ? "task" : "tasks"}
+            {filteredTodos.length} {taskWord}
           </span>
         </header>
 
@@ -84,29 +153,7 @@ function App() {
           </div>
         )}
 
-        {loading ? (
-          <p className="empty">Loading...</p>
-        ) : filteredTodos.length === 0 ? (
-          <div className="empty">
-            <img src="/logo.png" alt="" />
-            <p>
-              {filter === "done"
-                ? "Nothing completed yet"
-                : "You're all caught up. Add a task above."}
-            </p>
-          </div>
-        ) : (
-          <ul className="todo-list">
-            {filteredTodos.map((todo) => (
-              <TodoItem
-                key={todo._id}
-                todo={todo}
-                onUpdate={handleUpdate}
-                onDelete={handleDelete}
-              />
-            ))}
-          </ul>
-        )}
+        {renderTodos()}
       </main>
     </div>
   );
