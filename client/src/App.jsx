@@ -16,7 +16,6 @@ function App() {
     console.error(err);
     setError(err.message);
   }
-
   // Load all todos once when the page opens
   useEffect(() => {
     async function loadTodos() {
@@ -50,12 +49,12 @@ function App() {
   async function handleUpdate(id, data) {
   try {
     setError("");
-
     const updated = await updateTodo(id, data);
 
     setTodos((prev) =>
       prev.map((todo) =>
         todo._id === id ? updated : todo
+
       )
     );
   } catch (err) {
